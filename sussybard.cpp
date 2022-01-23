@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 	// 3 octave range for Bard.
 	constexpr int base_key = 36; // C somewhere on my keyboard.
 	constexpr int num_octaves = 3;
-	constexpr int num_keys = num_octaves * 12;
+	constexpr int num_keys = num_octaves * 12 + 1; // High C is also included.
 
 	xcb_key_symbols_t *syms = xcb_key_symbols_alloc(conn);
 	struct Event
@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 		else if (octave == 2)
 		{
 			xcb_keycode_t up = get_keycode(syms, XK_Shift_L);
-			for (int j = 0; j < 12; j++)
+			for (int j = 0; j < 13; j++)
 				code_tables[base + j].push_back({ up, XCB_KEY_PRESS });
 		}
 
@@ -191,6 +191,8 @@ int main(int argc, char **argv)
 		add_key_press_release(9, 'y'); // A
 		add_key_press_release(10, '7'); // A#
 		add_key_press_release(11, 'u'); // B
+		if (octave == 2)
+			add_key_press_release(12, 'i'); // B
 
 		if (octave == 0)
 		{
@@ -201,7 +203,7 @@ int main(int argc, char **argv)
 		else if (octave == 2)
 		{
 			xcb_keycode_t up = get_keycode(syms, XK_Shift_L);
-			for (int j = 0; j < 12; j++)
+			for (int j = 0; j < 13; j++)
 				code_tables[base + j].push_back({ up, XCB_KEY_RELEASE });
 		}
 	}
