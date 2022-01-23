@@ -24,9 +24,9 @@
 
 #include <stdlib.h>
 #include <vector>
-#include "fmsynth.h"
 #include "midi_source.hpp"
 #include "key_sink.hpp"
+#include "audio_pulse.hpp"
 
 // 3 octave range for Bard.
 constexpr int base_key = 36; // C somewhere on my keyboard.
@@ -106,20 +106,33 @@ int main(int argc, char **argv)
 	if (!key.init())
 		return EXIT_FAILURE;
 
+	Synth synth;
+	Pulse pulse(&synth);
+	if (!pulse.init(48000.0f, 2))
+		return EXIT_FAILURE;
+
 	auto code_tables = initialize_bind_table(key);
 
+	pulse.start();
 	MIDISource::NoteEvent ev = {};
 	while (source.wait_next_note_event(ev))
 	{
-		if (!ev.pressed)
-			continue;
-
-		//printf("Note on! %d (vel = %d)\n", ev->data.note.note, ev->data.note.velocity);
 		int node_offset = ev.note - base_key;
-		if (node_offset >= 0 && node_offset < num_keys)
+		bool in_range = node_offset >= 0 && node_offset < num_keys;
+
+		if (in_range)
 		{
-			auto &chain = code_tables[node_offset];
-			key.dispatch(chain.data(), chain.size());
+			if (ev.pressed)
+				synth.post_note_on(ev.note);
+			else
+				synth.post_note_off(ev.note);
+
+			if (ev.pressed)
+			{
+				auto &chain = code_tables[node_offset];
+				key.dispatch(chain.data(), chain.size());
+			}
 		}
 	}
+	pulse.stop();
 }
