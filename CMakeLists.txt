@@ -24,7 +24,7 @@ include(GNUInstallDirs)
 
 find_package(ALSA REQUIRED)
 include(FindPkgConfig)
-pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb)
+pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb xcb-xtest xcb-keysyms)
 
 add_executable(sussybard sussybard.cpp)
 target_link_libraries(sussybard PRIVATE ${ALSA_LIBRARIES})
