@@ -3,6 +3,11 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_STANDARD 99)
 project(SussyBard LANGUAGES CXX C)
 
+add_library(fmsynth STATIC fmsynth/src/fmsynth.c)
+target_include_directories(fmsynth PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/fmsynth/include)
+target_compile_definitions(fmsynth PRIVATE FMSYNTH_SIMD)
+target_compile_options(fmsynth PRIVATE -mavx)
+
 if (CMAKE_COMPILER_IS_GNUCXX OR (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang"))
     set(SUSSYBARD_CXX_FLAGS -Wshadow -Wall -Wextra -Wno-comment -Wno-missing-field-initializers -Wno-empty-body -ffast-math)
     if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
@@ -26,9 +31,12 @@ find_package(ALSA REQUIRED)
 include(FindPkgConfig)
 pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb xcb-xtest xcb-keysyms)
 
-add_executable(sussybard sussybard.cpp)
+add_executable(sussybard
+        sussybard.cpp
+        key_sink.cpp key_sink.hpp
+        midi_source.cpp midi_source.hpp)
 target_link_libraries(sussybard PRIVATE ${ALSA_LIBRARIES})
-target_link_libraries(sussybard PRIVATE PkgConfig::XCB)
+target_link_libraries(sussybard PRIVATE PkgConfig::XCB fmsynth)
 target_include_directories(sussybard PRIVATE ${ALSA_INCLUDE_DIRS})
 target_compile_options(sussybard PRIVATE ${SUSSYBARD_CXX_FLAGS})
 

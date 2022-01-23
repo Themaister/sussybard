@@ -1,0 +1,3 @@
+[submodule "fmsynth"]
+	path = fmsynth
+	url = https://github.com/Themaister/libfmsynth
