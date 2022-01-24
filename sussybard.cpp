@@ -82,6 +82,10 @@ int main(int argc, char **argv)
 
 		if (in_range)
 		{
+			// Ignore weird double taps.
+			if (ev.pressed && pressed_note_offset == node_offset)
+				continue;
+
 			if (ev.pressed)
 				synth.post_note_on(ev.note);
 			else
@@ -89,10 +93,6 @@ int main(int argc, char **argv)
 
 			KeySink::Event key_events[2] = {};
 			unsigned event_count = 0;
-
-			// Ignore weird double taps.
-			if (ev.pressed && pressed_note_offset == node_offset)
-				continue;
 
 			bool release_held_key = ev.pressed || pressed_note_offset == node_offset;
 
@@ -103,6 +103,7 @@ int main(int argc, char **argv)
 				auto &e = key_events[event_count++];
 				e.code = code_table[pressed_note_offset];
 				e.press = false;
+				synth.post_note_off(pressed_note_offset + base_key);
 				pressed_note_offset = -1;
 			}
 
