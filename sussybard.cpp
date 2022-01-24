@@ -33,63 +33,22 @@ constexpr int base_key = 36; // C somewhere on my keyboard.
 constexpr int num_octaves = 3;
 constexpr int num_keys = num_octaves * 12 + 1; // High C is also included.
 
-static std::vector<std::vector<KeySink::Event>> initialize_bind_table(const KeySink &key)
+static std::vector<uint32_t> initialize_bind_table(const KeySink &key)
 {
-	std::vector<std::vector<KeySink::Event>> code_tables(num_keys);
+	std::vector<uint32_t> code_table;
+	code_table.reserve(num_keys);
 
-	for (int octave = 0; octave < num_octaves; octave++)
+	for (int i = 0; i < num_keys; i++)
 	{
-		int base = octave * 12;
-
-		if (octave == 0)
-		{
-			auto down = key.translate_key(KeySink::SpecialKey::LeftControl);
-			for (int j = 0; j < 12; j++)
-				code_tables[base + j].push_back({ down, true });
-		}
-		else if (octave == 2)
-		{
-			xcb_keycode_t up = key.translate_key(KeySink::SpecialKey::LeftShift);
-			for (int j = 0; j < 13; j++)
-				code_tables[base + j].push_back({ up, true });
-		}
-
-		const auto add_key_press_release = [&](int i, char c) {
-			xcb_keycode_t code = key.translate_key(c);
-			code_tables[base + i].push_back({ code, true });
-			code_tables[base + i].push_back({ code, false });
-		};
-
-		add_key_press_release(0, 'q'); // C
-		add_key_press_release(1, '2'); // C#
-		add_key_press_release(2, 'w'); // D
-		add_key_press_release(3, '3'); // D#
-		add_key_press_release(4, 'e'); // E
-		add_key_press_release(5, 'r'); // F
-		add_key_press_release(6, '5'); // F#
-		add_key_press_release(7, 't'); // G
-		add_key_press_release(8, '6'); // G#
-		add_key_press_release(9, 'y'); // A
-		add_key_press_release(10, '7'); // A#
-		add_key_press_release(11, 'u'); // B
-		if (octave == 2)
-			add_key_press_release(12, 'i'); // C + 1
-
-		if (octave == 0)
-		{
-			auto down = key.translate_key(KeySink::SpecialKey::LeftControl);
-			for (int j = 0; j < 12; j++)
-				code_tables[base + j].push_back({ down, false });
-		}
-		else if (octave == 2)
-		{
-			xcb_keycode_t up = key.translate_key(KeySink::SpecialKey::LeftShift);
-			for (int j = 0; j < 13; j++)
-				code_tables[base + j].push_back({ up, false });
-		}
+		if (i + 1 == num_keys)
+			code_table.push_back(key.translate_key(','));
+		else if ('a' + i <= 'z')
+			code_table.push_back(key.translate_key('a' + i));
+		else if (i > ('z' - 'a'))
+			code_table.push_back(key.translate_key('0' + i - ('z' - 'a' + 1)));
 	}
 
-	return code_tables;
+	return code_table;
 }
 
 int main(int argc, char **argv)
@@ -111,10 +70,11 @@ int main(int argc, char **argv)
 	if (!pulse.init(48000.0f, 2))
 		return EXIT_FAILURE;
 
-	auto code_tables = initialize_bind_table(key);
+	auto code_table = initialize_bind_table(key);
 
 	pulse.start();
 	MIDISource::NoteEvent ev = {};
+	int pressed_note_offset = -1;
 	while (source.wait_next_note_event(ev))
 	{
 		int node_offset = ev.note - base_key;
@@ -127,12 +87,40 @@ int main(int argc, char **argv)
 			else
 				synth.post_note_off(ev.note);
 
+			KeySink::Event key_events[2] = {};
+			unsigned event_count = 0;
+
+			bool release_held_key = ev.pressed || pressed_note_offset == node_offset;
+
+			// There is no polyphony, so release any pressed key before we can press another one.
+			// If we're releasing a key, release only the held key if there's a match.
+			if (release_held_key && pressed_note_offset >= 0)
+			{
+				auto &e = key_events[event_count++];
+				e.code = code_table[pressed_note_offset];
+				e.press = false;
+				pressed_note_offset = -1;
+			}
+
 			if (ev.pressed)
 			{
-				auto &chain = code_tables[node_offset];
-				key.dispatch(chain.data(), chain.size());
+				auto &e = key_events[event_count++];
+				e.code = code_table[node_offset];
+				e.press = true;
+				pressed_note_offset = node_offset;
 			}
+
+			if (event_count)
+				key.dispatch(key_events, event_count);
 		}
 	}
+
+	if (pressed_note_offset >= 0)
+	{
+		KeySink::Event key_event = {};
+		key_event.code = code_table[pressed_note_offset];
+		key.dispatch(&key_event, 1);
+	}
+
 	pulse.stop();
 }
