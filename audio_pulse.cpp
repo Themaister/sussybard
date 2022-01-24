@@ -322,7 +322,7 @@ bool Pulse::init(float sample_rate_, unsigned channels_)
 
 	pa_buffer_attr buffer_attr = {};
 	buffer_attr.maxlength = -1u;
-	buffer_attr.tlength = pa_usec_to_bytes(30000, &spec);
+	buffer_attr.tlength = pa_usec_to_bytes(20000, &spec);
 	buffer_attr.prebuf = -1u;
 	buffer_attr.minreq = -1u;
 	buffer_attr.fragsize = -1u;
