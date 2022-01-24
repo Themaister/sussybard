@@ -90,6 +90,10 @@ int main(int argc, char **argv)
 			KeySink::Event key_events[2] = {};
 			unsigned event_count = 0;
 
+			// Ignore weird double taps.
+			if (ev.pressed && pressed_note_offset == node_offset)
+				continue;
+
 			bool release_held_key = ev.pressed || pressed_note_offset == node_offset;
 
 			// There is no polyphony, so release any pressed key before we can press another one.
