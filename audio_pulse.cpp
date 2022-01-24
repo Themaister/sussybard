@@ -94,22 +94,22 @@ void Synth::on_backend_start()
 		fmsynth_set_global_parameter(fm, FMSYNTH_GLOBAL_PARAM_VOLUME, 0.1f);
 
 		fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY0, 0, 0.05f);
-		fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY1, 0, 0.25f);
-		fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY2, 0, 0.5f);
-		fmsynth_set_parameter(fm, FMSYNTH_PARAM_RELEASE_TIME, 0, 0.5f);
+		fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY1, 0, 0.5f);
+		fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY2, 0, 1.0f);
+		fmsynth_set_parameter(fm, FMSYNTH_PARAM_RELEASE_TIME, 0, 1.0f);
 		fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET0, 0, 1.0f);
 		fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET1, 0, 0.2f);
-		fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET2, 0, 0.01f);
+		fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET2, 0, 0.03f);
 
 		for (unsigned i = 1; i < 2; i++)
 		{
 			fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY0, i, 0.01f);
 			fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY1, i, i == 1 ? 0.15f : 0.05f);
-			fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY2, i, i == 1 ? 0.20f : 0.1f);
-			fmsynth_set_parameter(fm, FMSYNTH_PARAM_RELEASE_TIME, i, i == 1 ? 0.25f : 0.1f);
+			fmsynth_set_parameter(fm, FMSYNTH_PARAM_DELAY2, i, i == 1 ? 0.25f : 0.1f);
+			fmsynth_set_parameter(fm, FMSYNTH_PARAM_RELEASE_TIME, i, i == 1 ? 0.35f : 0.1f);
 			fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET0, i, 1.0f);
-			fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET1, i, 0.1f);
-			fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET2, i, 0.01f);
+			fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET1, i, 0.2f);
+			fmsynth_set_parameter(fm, FMSYNTH_PARAM_ENVELOPE_TARGET2, i, 0.10f);
 		}
 
 		for (unsigned i = 0; i < FMSYNTH_OPERATORS; i++)
