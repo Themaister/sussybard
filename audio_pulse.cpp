@@ -38,7 +38,7 @@ Synth::~Synth()
 
 void Synth::set_backend_parameters(float sample_rate, unsigned, size_t)
 {
-	fm = fmsynth_new(sample_rate, 16);
+	fm = fmsynth_new(sample_rate, 64);
 	// TODO: Set some nice default parameters.
 }
 
