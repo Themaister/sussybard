@@ -122,13 +122,13 @@ void Synth::on_backend_start()
 		fmsynth_set_parameter(fm, FMSYNTH_PARAM_KEYBOARD_SCALING_HIGH_FACTOR, 1, -0.5f);
 		fmsynth_set_parameter(fm, FMSYNTH_PARAM_KEYBOARD_SCALING_LOW_FACTOR, 1, -0.5f);
 		fmsynth_set_parameter(fm, FMSYNTH_PARAM_MOD_TO_CARRIERS0 + 1, 0, 0.8f);
-		fmsynth_set_parameter(fm, FMSYNTH_GLOBAL_PARAM_VOLUME, 1, 1.5f);
+		fmsynth_set_parameter(fm, FMSYNTH_GLOBAL_PARAM_VOLUME, 1, 1.0f);
 
-		fmsynth_set_parameter(fm, FMSYNTH_PARAM_FREQ_MOD, 2, 6.001f);
-		fmsynth_set_parameter(fm, FMSYNTH_PARAM_KEYBOARD_SCALING_HIGH_FACTOR, 2, -0.5f);
-		fmsynth_set_parameter(fm, FMSYNTH_PARAM_KEYBOARD_SCALING_LOW_FACTOR, 2, -0.5f);
+		fmsynth_set_parameter(fm, FMSYNTH_PARAM_FREQ_MOD, 2, 12.00f);
+		fmsynth_set_parameter(fm, FMSYNTH_PARAM_KEYBOARD_SCALING_HIGH_FACTOR, 2, -1.0f);
+		fmsynth_set_parameter(fm, FMSYNTH_PARAM_KEYBOARD_SCALING_LOW_FACTOR, 2, -1.0f);
 		fmsynth_set_parameter(fm, FMSYNTH_PARAM_MOD_TO_CARRIERS0 + 2, 1, 0.5f);
-		fmsynth_set_parameter(fm, FMSYNTH_GLOBAL_PARAM_VOLUME, 2, 1.2f);
+		fmsynth_set_parameter(fm, FMSYNTH_GLOBAL_PARAM_VOLUME, 2, 0.6f);
 	}
 }
 
