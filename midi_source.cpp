@@ -67,11 +67,17 @@ bool MIDISource::init(const char *client)
 	if ((ret = snd_seq_open(&seq, "default", SND_SEQ_OPEN_INPUT, 0)) < 0)
 	{
 		fprintf(stderr, "Failed to open. (ret = %d)\n", ret);
-		return EXIT_FAILURE;
+		return false;
 	}
 
 	snd_seq_set_client_name(seq, "Sussybard");
 	list_midi_ports();
+
+	if (!client)
+	{
+		fprintf(stderr, "No client provided ...\n");
+		return false;
+	}
 
 	int in_port = snd_seq_create_simple_port(seq, "listen:in",
 	                                         SND_SEQ_PORT_CAP_WRITE |
