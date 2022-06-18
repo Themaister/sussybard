@@ -47,8 +47,8 @@ public:
 
 	// FF XIV Bard doesn't have velocity or anything fancy, keep it simple.
 	// We just need performance guiding.
-	void post_note_on(int note);
-	void post_note_off(int note);
+	void post_note_on(int channel, int note);
+	void post_note_off(int channel, int note);
 
 	void mix_samples(float * const *channels, size_t num_frames) noexcept override;
 	void set_backend_parameters(float sample_rate, unsigned channels, size_t max_num_frames) override;
@@ -57,8 +57,8 @@ public:
 	void set_latency_usec(uint32_t usec) override;
 
 private:
-	fmsynth_t *fm = nullptr;
-	enum { RingSize = 4096 };
+	enum { RingSize = 4096, NumSplits = 2 };
+	fmsynth_t *fms[NumSplits] = {};
 	std::vector<uint32_t> ring;
 	std::atomic_uint32_t atomic_write_count;
 	uint32_t read_count = 0;

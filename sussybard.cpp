@@ -79,9 +79,12 @@ struct Arguments
 	bool key_sink = false;
 	bool udp_source = false;
 	int midi_transpose = 0;
+
 	int synth_transpose = 12;
 	int base_key = 36;
 	int num_active_octaves = 3;
+
+	int synth_transpose_udp = 0;
 	int base_key_udp = 72;
 	int num_active_octaves_udp = 3;
 };
@@ -115,10 +118,11 @@ static void print_help()
 	                "\t[--udp-source <port>]\n"
 	                "\t[--key-sink]\n"
 	                "\t[--udp-sink <addr:port>]\n"
-	                "\t[--midi-transpose <semitones (default = 0)>]\n"
-	                "\t[--synth-transpose <semitones (default = 12)>]\n"
+	                "\t[--midi-transpose <semitones> (default = 0)]\n"
+	                "\t[--synth-transpose <semitones> (default = 12)]\n"
 	                "\t[--base-key <MIDI key which maps to lowest C on Bard instrument> (default = 36 / C2)]\n"
 	                "\t[--active-octaves <Number of octaves which trigger keys locally> (default = 3, max = 3)]\n"
+	                "\t[--synth-transpose-udp <semitones when playing back UDP mirror> (default = 0)]\n"
 	                "\t[--base-key-udp <MIDI key which maps to lowest C on Bard instrument for UDP coop> (default = 72 / C5)]\n"
 	                "\t[--active-octaves-udp <Number of octaves which trigger keys remotely> (default = 3, max = 3)]\n"
 	                "\t[--help]\n");
@@ -139,6 +143,7 @@ int main(int argc, char **argv)
 	cbs.add("--active-octaves", [&](Util::CLIParser &parser) { args.num_active_octaves = parser.next_int(); });
 	cbs.add("--base-key-udp", [&](Util::CLIParser &parser) { args.base_key_udp = parser.next_int(); });
 	cbs.add("--active-octaves-udp", [&](Util::CLIParser &parser) { args.num_active_octaves_udp = parser.next_int(); });
+	cbs.add("--synth-transpose-udp", [&](Util::CLIParser &parser) { args.synth_transpose_udp = parser.next_int(); });
 	cbs.add("--help", [&](Util::CLIParser &parser) { parser.end(); });
 
 	Util::CLIParser parser(std::move(cbs), argc - 1, argv + 1);
@@ -194,6 +199,7 @@ int main(int argc, char **argv)
 		int pressed_note_offset = -1;
 		int base_key = 0;
 		int range = 0;
+		int synth_transpose = 0;
 
 		bool note_is_in_range(int note) const
 		{
@@ -207,8 +213,10 @@ int main(int argc, char **argv)
 
 	local.base_key = args.base_key;
 	local.range = args.num_active_octaves * 12;
+	local.synth_transpose = args.synth_transpose;
 	remote.base_key = args.base_key_udp;
 	remote.range = args.num_active_octaves_udp * 12;
+	remote.synth_transpose = args.synth_transpose_udp;
 
 	const auto handle_note = [&](const MIDISource::NoteEvent &event,
 	                             MonophonyTracker &tracker, bool is_local) {
@@ -222,9 +230,9 @@ int main(int argc, char **argv)
 			return;
 
 		if (event.pressed)
-			synth.post_note_on(event.note + args.synth_transpose);
+			synth.post_note_on(is_local ? 0 : 1, event.note + tracker.synth_transpose);
 		else
-			synth.post_note_off(event.note + args.synth_transpose);
+			synth.post_note_off(is_local ? 0 : 1, event.note + tracker.synth_transpose);
 
 		KeySink::Event key_events[2] = {};
 		unsigned event_count = 0;
@@ -238,7 +246,7 @@ int main(int argc, char **argv)
 			auto &e = key_events[event_count++];
 			e.code = code_table[tracker.pressed_note_offset];
 			e.press = false;
-			synth.post_note_off(tracker.pressed_note_offset + args.base_key + args.synth_transpose);
+			synth.post_note_off(is_local ? 0 : 1, tracker.pressed_note_offset + tracker.base_key + tracker.synth_transpose);
 			tracker.pressed_note_offset = -1;
 		}
 
@@ -262,7 +270,7 @@ int main(int argc, char **argv)
 			break;
 
 		handle_note(ev, local, true);
-		handle_note(ev, remote, true);
+		handle_note(ev, remote, false);
 	}
 
 	if (key && local.pressed_note_offset >= 0)
