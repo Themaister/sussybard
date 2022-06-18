@@ -22,18 +22,61 @@
 
 #pragma once
 
-class MIDISource
+#include <thread>
+#include <atomic>
+#include <audioclient.h>
+#include <audiopolicy.h>
+#include <mmdeviceapi.h>
+#include <avrt.h>
+
+#include "synth.hpp"
+
+// Hacked and stripped down version of Granite's WASAPI backend.
+
+struct WASAPI
 {
 public:
-	struct NoteEvent
+	explicit WASAPI(BackendCallback *callback_);
+	~WASAPI();
+
+	bool init(float sample_rate_, unsigned channels_);
+	bool start();
+	bool stop();
+
+	float get_sample_rate() const
 	{
-		int note;
-		bool pressed;
-	};
+		return sample_rate;
+	}
 
-	virtual ~MIDISource() = default;
-	void operator=(const MIDISource &) = delete;
+	unsigned get_num_channels() const
+	{
+		return channels;
+	}
 
-	virtual bool init(const char *client) = 0;
-	virtual bool wait_next_note_event(NoteEvent &event) = 0;
+	enum { MaxChannels = 2 };
+
+	BackendCallback *callback;
+	float sample_rate = 0.0f;
+	unsigned channels = 0;
+
+	void thread_runner() noexcept;
+
+	std::thread thr;
+	std::atomic<bool> dead;
+
+	IMMDeviceEnumerator *pEnumerator = nullptr;
+	IMMDevice *pDevice = nullptr;
+	IAudioClient *pAudioClient = nullptr;
+	IAudioRenderClient *pRenderClient = nullptr;
+	UINT32 buffer_frames = 0;
+	WAVEFORMATEX *format = nullptr;
+	bool is_active = false;
+	HANDLE audio_event = nullptr;
+
+	bool kick_start() noexcept;
+
+	bool get_write_avail(UINT32 &avail) noexcept;
+	bool get_write_avail_blocking(UINT32 &avail) noexcept;
 };
+
+using AudioBackend = WASAPI;

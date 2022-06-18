@@ -22,18 +22,16 @@
 
 #pragma once
 
-class MIDISource
+#include "udp_common.hpp"
+
+class UDPSink
 {
 public:
-	struct NoteEvent
-	{
-		int note;
-		bool pressed;
-	};
+	~UDPSink();
+	bool init(const char *server);
+	bool send(int note, bool pressed);
 
-	virtual ~MIDISource() = default;
-	void operator=(const MIDISource &) = delete;
-
-	virtual bool init(const char *client) = 0;
-	virtual bool wait_next_note_event(NoteEvent &event) = 0;
+private:
+	SOCKET fd = INVALID_SOCKET;
+	sockaddr_in addr = {};
 };

@@ -26,20 +26,41 @@ endif()
 
 include(GNUInstallDirs)
 
-find_package(ALSA REQUIRED)
-include(FindPkgConfig)
-pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb xcb-xtest xcb-keysyms)
-pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse)
+if (NOT WIN32)
+    find_package(ALSA REQUIRED)
+    include(FindPkgConfig)
+    pkg_check_modules(XCB REQUIRED IMPORTED_TARGET xcb xcb-xtest xcb-keysyms)
+    pkg_check_modules(PULSE REQUIRED IMPORTED_TARGET libpulse)
+endif()
 
 add_executable(sussybard
         sussybard.cpp
-        audio_pulse.cpp audio_pulse.hpp
         dsp.hpp
         simd_headers.hpp
-        key_sink.cpp key_sink.hpp
-        midi_source.cpp midi_source.hpp)
-target_link_libraries(sussybard PRIVATE ${ALSA_LIBRARIES})
-target_link_libraries(sussybard PRIVATE PkgConfig::XCB PkgConfig::PULSE fmsynth)
-target_include_directories(sussybard PRIVATE ${ALSA_INCLUDE_DIRS})
+        midi_source.hpp
+        cli_parser.hpp cli_parser.cpp
+        midi_source_udp.hpp midi_source_udp.cpp
+        udp_common.hpp
+        udp_sink.hpp udp_sink.cpp
+        synth.cpp synth.hpp)
+
+target_link_libraries(sussybard PRIVATE fmsynth)
+
+if (NOT WIN32)
+    target_sources(sussybard PRIVATE
+            audio_pulse.cpp audio_pulse.hpp
+            midi_source_alsa.cpp midi_source_alsa.hpp
+            key_sink_xcb.cpp key_sink_xcb.hpp)
+    target_link_libraries(sussybard PRIVATE ${ALSA_LIBRARIES})
+    target_link_libraries(sussybard PRIVATE PkgConfig::XCB PkgConfig::PULSE)
+    target_include_directories(sussybard PRIVATE ${ALSA_INCLUDE_DIRS})
+else()
+    target_sources(sussybard PRIVATE
+            audio_wasapi.cpp audio_wasapi.hpp
+            midi_source_win32.cpp midi_source_win32.hpp
+            key_sink_win32.cpp key_sink_win32.hpp)
+    target_link_libraries(sussybard PRIVATE winmm avrt ws2_32)
+endif()
+
 target_compile_options(sussybard PRIVATE ${SUSSYBARD_CXX_FLAGS})
 

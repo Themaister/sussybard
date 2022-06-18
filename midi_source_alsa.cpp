@@ -20,9 +20,9 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "midi_source.hpp"
+#include "midi_source_alsa.hpp"
 
-bool MIDISource::wait_next_note_event(NoteEvent &event)
+bool MIDISourceALSA::wait_next_note_event(NoteEvent &event)
 {
 	snd_seq_event_t *ev = nullptr;
 	bool got_event = false;
@@ -55,13 +55,13 @@ bool MIDISource::wait_next_note_event(NoteEvent &event)
 	return got_event;
 }
 
-MIDISource::~MIDISource()
+MIDISourceALSA::~MIDISourceALSA()
 {
 	if (seq)
 		snd_seq_close(seq);
 }
 
-bool MIDISource::init(const char *client)
+bool MIDISourceALSA::init(const char *client)
 {
 	int ret;
 	if ((ret = snd_seq_open(&seq, "default", SND_SEQ_OPEN_INPUT, 0)) < 0)
@@ -110,7 +110,7 @@ bool MIDISource::init(const char *client)
 	return true;
 }
 
-void MIDISource::list_midi_ports()
+void MIDISourceALSA::list_midi_ports()
 {
 	snd_seq_client_info_t *cinfo;
 	snd_seq_port_info_t *pinfo;

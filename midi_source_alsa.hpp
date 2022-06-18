@@ -22,18 +22,18 @@
 
 #pragma once
 
-class MIDISource
+#include "midi_source.hpp"
+#include <alsa/asoundlib.h>
+
+class MIDISourceALSA final : public MIDISource
 {
 public:
-	struct NoteEvent
-	{
-		int note;
-		bool pressed;
-	};
+	MIDISourceALSA() = default;
+	~MIDISourceALSA() override;
+	bool init(const char *client) override;
+	bool wait_next_note_event(NoteEvent &event) override;
 
-	virtual ~MIDISource() = default;
-	void operator=(const MIDISource &) = delete;
-
-	virtual bool init(const char *client) = 0;
-	virtual bool wait_next_note_event(NoteEvent &event) = 0;
+private:
+	snd_seq_t *seq = nullptr;
+	void list_midi_ports();
 };

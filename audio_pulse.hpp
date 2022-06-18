@@ -25,46 +25,9 @@
 #include <pulse/pulseaudio.h>
 #include <atomic>
 #include <vector>
-#include "fmsynth.h"
+#include "synth.hpp"
 
 // Hacked and stripped down version of Granite's Pulse backend.
-
-class BackendCallback
-{
-public:
-	virtual ~BackendCallback() = default;
-	virtual void mix_samples(float * const *channels, size_t num_frames) noexcept = 0;
-
-	virtual void set_backend_parameters(float sample_rate, unsigned channels, size_t max_num_frames) = 0;
-	virtual void on_backend_stop() = 0;
-	virtual void on_backend_start() = 0;
-	virtual void set_latency_usec(uint32_t usec) = 0;
-};
-
-class Synth : public BackendCallback
-{
-public:
-	~Synth();
-
-	// FF XIV Bard doesn't have velocity or anything fancy, keep it simple.
-	// We just need performance guiding.
-	void post_note_on(int note);
-	void post_note_off(int note);
-
-	void mix_samples(float * const *channels, size_t num_frames) noexcept override;
-	void set_backend_parameters(float sample_rate, unsigned channels, size_t max_num_frames) override;
-	void on_backend_stop() override;
-	void on_backend_start() override;
-	void set_latency_usec(uint32_t usec) override;
-
-private:
-	fmsynth_t *fm = nullptr;
-	enum { RingSize = 4096 };
-	std::vector<uint32_t> ring;
-	std::atomic_uint32_t atomic_write_count;
-	uint32_t read_count = 0;
-	uint32_t write_count = 0;
-};
 
 struct Pulse
 {
@@ -103,3 +66,5 @@ public:
 	void update_buffer_attr(const pa_buffer_attr &attr) noexcept;
 	size_t to_frames(size_t size) const noexcept;
 };
+
+using AudioBackend = Pulse;

@@ -22,18 +22,28 @@
 
 #pragma once
 
-class MIDISource
+#include "midi_source.hpp"
+#include <windows.h>
+#include <stdint.h>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
+
+class MIDISourceMM final : public MIDISource
 {
 public:
-	struct NoteEvent
-	{
-		int note;
-		bool pressed;
-	};
+	~MIDISourceMM() override;
+	bool init(const char *client) override;
+	bool wait_next_note_event(NoteEvent &event) override;
 
-	virtual ~MIDISource() = default;
-	void operator=(const MIDISource &) = delete;
+	void key_on(int note);
+	void key_off(int note);
 
-	virtual bool init(const char *client) = 0;
-	virtual bool wait_next_note_event(NoteEvent &event) = 0;
+private:
+	HMIDIIN handle = {};
+	void list_midi_ports();
+
+	std::mutex lock;
+	std::condition_variable cond;
+	std::queue<MIDISource::NoteEvent> note_queue;
 };

@@ -22,18 +22,28 @@
 
 #pragma once
 
-class MIDISource
+#include <windows.h>
+#include <vector>
+#include <stdint.h>
+
+class KeySink
 {
 public:
-	struct NoteEvent
+	~KeySink();
+	bool init();
+
+	enum class SpecialKey { LeftShift, LeftControl };
+
+	uint32_t translate_key(char key) const;
+	uint32_t translate_key(SpecialKey key) const;
+
+	struct Event
 	{
-		int note;
-		bool pressed;
+		uint32_t code;
+		bool press;
 	};
+	void dispatch(const Event *events, size_t count);
 
-	virtual ~MIDISource() = default;
-	void operator=(const MIDISource &) = delete;
-
-	virtual bool init(const char *client) = 0;
-	virtual bool wait_next_note_event(NoteEvent &event) = 0;
+private:
+	std::vector<INPUT> input_buffer;
 };

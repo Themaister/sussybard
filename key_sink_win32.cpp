@@ -20,20 +20,53 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
+#include "key_sink_win32.hpp"
 
-class MIDISource
+bool KeySink::init()
 {
-public:
-	struct NoteEvent
+	return true;
+}
+
+KeySink::~KeySink()
+{
+}
+
+void KeySink::dispatch(const Event *events, size_t count)
+{
+	input_buffer.clear();
+	input_buffer.reserve(count);
+
+	for (size_t i = 0; i < count; i++)
 	{
-		int note;
-		bool pressed;
-	};
+		INPUT ip = {};
+		ip.type = INPUT_KEYBOARD;
+		ip.ki.dwFlags = events[i].press ? 0 : KEYEVENTF_KEYUP;
+		ip.ki.wVk = events[i].code;
+		input_buffer.push_back(ip);
+	}
 
-	virtual ~MIDISource() = default;
-	void operator=(const MIDISource &) = delete;
+	SendInput(UINT(count), input_buffer.data(), sizeof(INPUT));
+}
 
-	virtual bool init(const char *client) = 0;
-	virtual bool wait_next_note_event(NoteEvent &event) = 0;
-};
+uint32_t KeySink::translate_key(char key) const
+{
+	if (isalpha(key))
+		return uint32_t(toupper(key));
+	else if (key == ',')
+		return VK_OEM_COMMA;
+	else
+		return uint32_t(key);
+}
+
+uint32_t KeySink::translate_key(SpecialKey key) const
+{
+	switch (key)
+	{
+	case SpecialKey::LeftControl:
+		return VK_LCONTROL;
+	case SpecialKey::LeftShift:
+		return VK_LSHIFT;
+	default:
+		return 0;
+	}
+}
