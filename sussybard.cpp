@@ -42,7 +42,6 @@
 #endif
 
 // 3 octave range for Bard.
-constexpr int base_key = 36; // C somewhere on my keyboard.
 constexpr int num_octaves = 3;
 constexpr int num_keys = num_octaves * 12 + 1; // High C is also included.
 
@@ -75,7 +74,9 @@ struct Arguments
 	std::string client;
 	bool key_sink = false;
 	bool udp_source = false;
-	int transpose = 0;
+	int midi_transpose = 0;
+	int synth_transpose = 12;
+	int base_key = 36;
 };
 
 static std::unique_ptr<MIDISource> create_midi_source(const Arguments &args)
@@ -106,8 +107,10 @@ static void print_help()
 	                "\t[--midi-source <MIDI device name>]\n"
 	                "\t[--udp-source <port>]\n"
 	                "\t[--key-sink]\n"
-	                "\t[--transpose <semitones>]\n"
-					"\t[--help]\n");
+	                "\t[--midi-transpose <semitones (default = 0)>]\n"
+	                "\t[--synth-transpose <semitones (default = 12)>]\n"
+	                "\t[--base-key <MIDI key which maps to lowest C on Bard instrument> (default = 36 / C2)]\n"
+	                "\t[--help]\n");
 }
 
 int main(int argc, char **argv)
@@ -118,7 +121,9 @@ int main(int argc, char **argv)
 	cbs.add("--midi-source", [&](Util::CLIParser &parser) { args.client = parser.next_string(); });
 	cbs.add("--udp-source", [&](Util::CLIParser &parser) { args.client = parser.next_string(); args.udp_source = true; });
 	cbs.add("--key-sink", [&](Util::CLIParser &) { args.key_sink = true; });
-	cbs.add("--transpose", [&](Util::CLIParser &parser) { args.transpose = parser.next_int(); });
+	cbs.add("--midi-transpose", [&](Util::CLIParser &parser) { args.midi_transpose = parser.next_int(); });
+	cbs.add("--synth-transpose", [&](Util::CLIParser &parser) { args.synth_transpose = parser.next_int(); });
+	cbs.add("--base-key", [&](Util::CLIParser &parser) { args.base_key = parser.next_int(); });
 	cbs.add("--help", [&](Util::CLIParser &parser) { parser.end(); });
 
 	Util::CLIParser parser(std::move(cbs), argc - 1, argv + 1);
@@ -158,9 +163,9 @@ int main(int argc, char **argv)
 	int pressed_note_offset = -1;
 	while (source->wait_next_note_event(ev))
 	{
-		ev.note += args.transpose;
+		ev.note += args.midi_transpose;
 
-		int node_offset = ev.note - base_key;
+		int node_offset = ev.note - args.base_key;
 		bool in_range = node_offset >= 0 && node_offset < num_keys;
 
 		if (in_range)
@@ -170,9 +175,9 @@ int main(int argc, char **argv)
 				continue;
 
 			if (ev.pressed)
-				synth.post_note_on(ev.note);
+				synth.post_note_on(ev.note + args.synth_transpose);
 			else
-				synth.post_note_off(ev.note);
+				synth.post_note_off(ev.note + args.synth_transpose);
 
 			KeySink::Event key_events[2] = {};
 			unsigned event_count = 0;
@@ -186,7 +191,7 @@ int main(int argc, char **argv)
 				auto &e = key_events[event_count++];
 				e.code = code_table[pressed_note_offset];
 				e.press = false;
-				synth.post_note_off(pressed_note_offset + base_key);
+				synth.post_note_off(pressed_note_offset + args.base_key + args.synth_transpose);
 				pressed_note_offset = -1;
 			}
 

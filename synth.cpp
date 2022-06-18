@@ -38,15 +38,14 @@ void Synth::set_backend_parameters(float sample_rate, unsigned, size_t)
 void Synth::mix_samples(float *const *channels, size_t num_frames) noexcept
 {
 	uint32_t target = atomic_write_count.load(std::memory_order_acquire);
-	constexpr int transpose = 12;
 
 	for (; read_count < target; read_count++)
 	{
 		uint32_t note = ring[read_count % RingSize];
 		if (note & 0x80000000u)
-			fmsynth_note_on(fm, uint8_t(note + transpose), 255);
+			fmsynth_note_on(fm, uint8_t(note), 255);
 		else
-			fmsynth_note_off(fm, uint8_t(note + transpose));
+			fmsynth_note_off(fm, uint8_t(note));
 	}
 
 	memset(channels[0], 0, num_frames * sizeof(float));
