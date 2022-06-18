@@ -38,6 +38,7 @@ static inline bool init_socket_api()
 #include <fcntl.h>
 #include <unistd.h>
 #include <netinet/in.h>
+#include <netdb.h>
 using SOCKET = int;
 static constexpr SOCKET INVALID_SOCKET = -1;
 static inline bool init_socket_api()
