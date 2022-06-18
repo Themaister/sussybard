@@ -37,6 +37,9 @@ add_executable(sussybard
         sussybard.cpp
         dsp.hpp
         simd_headers.hpp
+        midi_source.hpp
+        cli_parser.hpp cli_parser.cpp
+        midi_source_udp.hpp midi_source_udp.cpp
         synth.cpp synth.hpp)
 
 target_link_libraries(sussybard PRIVATE fmsynth)
@@ -54,7 +57,7 @@ else()
             audio_wasapi.cpp audio_wasapi.hpp
             midi_source_win32.cpp midi_source_win32.hpp
             key_sink_win32.cpp key_sink_win32.hpp)
-    target_link_libraries(sussybard PRIVATE winmm avrt)
+    target_link_libraries(sussybard PRIVATE winmm avrt ws2_32)
 endif()
 
 target_compile_options(sussybard PRIVATE ${SUSSYBARD_CXX_FLAGS})

@@ -23,17 +23,22 @@
 #pragma once
 
 #include "midi_source.hpp"
-#include <alsa/asoundlib.h>
 
-class MIDISourceALSA final : public MIDISource
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
+using SOCKET = int;
+static constexpr SOCKET INVALID_SOCKET = -1;
+#endif
+
+class MIDISourceUDP final : public MIDISource
 {
 public:
-	MIDISourceALSA() = default;
-	~MIDISourceALSA() override;
+	~MIDISourceUDP() override;
 	bool init(const char *client) override;
 	bool wait_next_note_event(NoteEvent &event) override;
 
 private:
-	snd_seq_t *seq = nullptr;
-	void list_midi_ports();
+	SOCKET fd = INVALID_SOCKET;
 };

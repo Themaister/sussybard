@@ -22,26 +22,19 @@
 
 #pragma once
 
+#include "midi_source.hpp"
 #include <windows.h>
 #include <stdint.h>
 #include <condition_variable>
 #include <mutex>
 #include <queue>
 
-class MIDISource
+class MIDISourceMM final : public MIDISource
 {
 public:
-	struct NoteEvent
-	{
-		int note;
-		bool pressed;
-	};
-
-	MIDISource() = default;
-	void operator=(const MIDISource &) = delete;
-	~MIDISource();
-	bool init(const char *client);
-	bool wait_next_note_event(NoteEvent &event);
+	~MIDISourceMM() override;
+	bool init(const char *client) override;
+	bool wait_next_note_event(NoteEvent &event) override;
 
 	void key_on(int note);
 	void key_off(int note);
@@ -52,5 +45,5 @@ private:
 
 	std::mutex lock;
 	std::condition_variable cond;
-	std::queue<NoteEvent> note_queue;
+	std::queue<MIDISource::NoteEvent> note_queue;
 };

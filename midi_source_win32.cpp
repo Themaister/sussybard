@@ -23,7 +23,7 @@
 #include "midi_source_win32.hpp"
 #include <stdio.h>
 
-void MIDISource::list_midi_ports()
+void MIDISourceMM::list_midi_ports()
 {
 	auto num_devices = midiInGetNumDevs();
 	MIDIINCAPS caps;
@@ -37,7 +37,7 @@ void MIDISource::list_midi_ports()
 	}
 }
 
-MIDISource::~MIDISource()
+MIDISourceMM::~MIDISourceMM()
 {
 	if (handle)
 	{
@@ -47,21 +47,21 @@ MIDISource::~MIDISource()
 	}
 }
 
-void MIDISource::key_on(int note)
+void MIDISourceMM::key_on(int note)
 {
 	std::lock_guard<std::mutex> holder{lock};
 	note_queue.push({ note, true });
 	cond.notify_one();
 }
 
-void MIDISource::key_off(int note)
+void MIDISourceMM::key_off(int note)
 {
 	std::lock_guard<std::mutex> holder{lock};
 	note_queue.push({ note, false });
 	cond.notify_one();
 }
 
-bool MIDISource::wait_next_note_event(NoteEvent &event)
+bool MIDISourceMM::wait_next_note_event(NoteEvent &event)
 {
 	std::unique_lock<std::mutex> holder{lock};
 	cond.wait(holder, [this]() {
@@ -74,7 +74,7 @@ bool MIDISource::wait_next_note_event(NoteEvent &event)
 
 static void CALLBACK midi_callback(HMIDIIN, UINT wMsg, DWORD_PTR dwInstance, DWORD_PTR dw_param1, DWORD_PTR)
 {
-	auto *source = reinterpret_cast<MIDISource *>(dwInstance);
+	auto *source = reinterpret_cast<MIDISourceMM *>(dwInstance);
 	if (wMsg == MM_MIM_DATA)
 	{
 		auto code = uint8_t(dw_param1 >> 0);
@@ -91,7 +91,7 @@ static void CALLBACK midi_callback(HMIDIIN, UINT wMsg, DWORD_PTR dwInstance, DWO
 	}
 }
 
-bool MIDISource::init(const char *client)
+bool MIDISourceMM::init(const char *client)
 {
 	list_midi_ports();
 
