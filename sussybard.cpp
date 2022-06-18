@@ -20,6 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define NOMINMAX
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -27,6 +28,7 @@
 #include <vector>
 #include <string>
 #include <utility>
+#include <algorithm>
 #include "synth.hpp"
 #include "cli_parser.hpp"
 #include "midi_source_udp.hpp"
@@ -79,6 +81,9 @@ struct Arguments
 	int midi_transpose = 0;
 	int synth_transpose = 12;
 	int base_key = 36;
+	int num_active_octaves = 3;
+	int base_key_udp = 72;
+	int num_active_octaves_udp = 3;
 };
 
 static std::unique_ptr<MIDISource> create_midi_source(const Arguments &args)
@@ -113,6 +118,9 @@ static void print_help()
 	                "\t[--midi-transpose <semitones (default = 0)>]\n"
 	                "\t[--synth-transpose <semitones (default = 12)>]\n"
 	                "\t[--base-key <MIDI key which maps to lowest C on Bard instrument> (default = 36 / C2)]\n"
+	                "\t[--active-octaves <Number of octaves which trigger keys locally> (default = 3, max = 3)]\n"
+	                "\t[--base-key-udp <MIDI key which maps to lowest C on Bard instrument for UDP coop> (default = 72 / C5)]\n"
+	                "\t[--active-octaves-udp <Number of octaves which trigger keys remotely> (default = 3, max = 3)]\n"
 	                "\t[--help]\n");
 }
 
@@ -128,6 +136,9 @@ int main(int argc, char **argv)
 	cbs.add("--midi-transpose", [&](Util::CLIParser &parser) { args.midi_transpose = parser.next_int(); });
 	cbs.add("--synth-transpose", [&](Util::CLIParser &parser) { args.synth_transpose = parser.next_int(); });
 	cbs.add("--base-key", [&](Util::CLIParser &parser) { args.base_key = parser.next_int(); });
+	cbs.add("--active-octaves", [&](Util::CLIParser &parser) { args.num_active_octaves = parser.next_int(); });
+	cbs.add("--base-key-udp", [&](Util::CLIParser &parser) { args.base_key_udp = parser.next_int(); });
+	cbs.add("--active-octaves-udp", [&](Util::CLIParser &parser) { args.num_active_octaves_udp = parser.next_int(); });
 	cbs.add("--help", [&](Util::CLIParser &parser) { parser.end(); });
 
 	Util::CLIParser parser(std::move(cbs), argc - 1, argv + 1);
@@ -141,6 +152,9 @@ int main(int argc, char **argv)
 		print_help();
 		return EXIT_SUCCESS;
 	}
+
+	args.num_active_octaves = std::max(std::min(args.num_active_octaves, num_octaves), 0);
+	args.num_active_octaves_udp = std::max(std::min(args.num_active_octaves_udp, num_octaves), 0);
 
 	auto source = create_midi_source(args);
 	if (!source)
@@ -172,61 +186,89 @@ int main(int argc, char **argv)
 
 	pulse.start();
 	MIDISource::NoteEvent ev = {};
-	int pressed_note_offset = -1;
+
+	// Simulate the split polyphony we can get per player.
+
+	struct MonophonyTracker
+	{
+		int pressed_note_offset = -1;
+		int base_key = 0;
+		int range = 0;
+
+		bool note_is_in_range(int note) const
+		{
+			note -= base_key;
+			return note >= 0 && note < range;
+		}
+	};
+
+	MonophonyTracker local;
+	MonophonyTracker remote;
+
+	local.base_key = args.base_key;
+	local.range = args.num_active_octaves * 12;
+	remote.base_key = args.base_key_udp;
+	remote.range = args.num_active_octaves_udp * 12;
+
+	const auto handle_note = [&](const MIDISource::NoteEvent &event,
+	                             MonophonyTracker &tracker, bool is_local) {
+		if (!tracker.note_is_in_range(event.note))
+			return;
+
+		int note_offset_local = event.note - tracker.base_key;
+
+		// Ignore weird double taps.
+		if (event.pressed && tracker.pressed_note_offset == note_offset_local)
+			return;
+
+		if (event.pressed)
+			synth.post_note_on(event.note + args.synth_transpose);
+		else
+			synth.post_note_off(event.note + args.synth_transpose);
+
+		KeySink::Event key_events[2] = {};
+		unsigned event_count = 0;
+
+		bool release_held_key = event.pressed || tracker.pressed_note_offset == note_offset_local;
+
+		// There is no polyphony, so release any pressed key before we can press another one.
+		// If we're releasing a key, release only the held key if there's a match.
+		if (release_held_key && tracker.pressed_note_offset >= 0)
+		{
+			auto &e = key_events[event_count++];
+			e.code = code_table[tracker.pressed_note_offset];
+			e.press = false;
+			synth.post_note_off(tracker.pressed_note_offset + args.base_key + args.synth_transpose);
+			tracker.pressed_note_offset = -1;
+		}
+
+		if (event.pressed)
+		{
+			auto &e = key_events[event_count++];
+			e.code = code_table[note_offset_local];
+			e.press = true;
+			tracker.pressed_note_offset = note_offset_local;
+		}
+
+		if (is_local && key && event_count)
+			key->dispatch(key_events, event_count);
+	};
+
 	while (source->wait_next_note_event(ev))
 	{
 		ev.note += args.midi_transpose;
 
-		if (udp_sink && !udp_sink->send(ev.note, ev.pressed))
+		if (remote.note_is_in_range(ev.note) && udp_sink && !udp_sink->send(ev.note, ev.pressed))
 			break;
 
-		int node_offset = ev.note - args.base_key;
-		bool in_range = node_offset >= 0 && node_offset < num_keys;
-
-		if (in_range)
-		{
-			// Ignore weird double taps.
-			if (ev.pressed && pressed_note_offset == node_offset)
-				continue;
-
-			if (ev.pressed)
-				synth.post_note_on(ev.note + args.synth_transpose);
-			else
-				synth.post_note_off(ev.note + args.synth_transpose);
-
-			KeySink::Event key_events[2] = {};
-			unsigned event_count = 0;
-
-			bool release_held_key = ev.pressed || pressed_note_offset == node_offset;
-
-			// There is no polyphony, so release any pressed key before we can press another one.
-			// If we're releasing a key, release only the held key if there's a match.
-			if (release_held_key && pressed_note_offset >= 0)
-			{
-				auto &e = key_events[event_count++];
-				e.code = code_table[pressed_note_offset];
-				e.press = false;
-				synth.post_note_off(pressed_note_offset + args.base_key + args.synth_transpose);
-				pressed_note_offset = -1;
-			}
-
-			if (ev.pressed)
-			{
-				auto &e = key_events[event_count++];
-				e.code = code_table[node_offset];
-				e.press = true;
-				pressed_note_offset = node_offset;
-			}
-
-			if (key && event_count)
-				key->dispatch(key_events, event_count);
-		}
+		handle_note(ev, local, true);
+		handle_note(ev, remote, true);
 	}
 
-	if (key && pressed_note_offset >= 0)
+	if (key && local.pressed_note_offset >= 0)
 	{
 		KeySink::Event key_event = {};
-		key_event.code = code_table[pressed_note_offset];
+		key_event.code = code_table[local.pressed_note_offset];
 		key->dispatch(&key_event, 1);
 	}
 
