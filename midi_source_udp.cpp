@@ -22,6 +22,14 @@
 
 #include "midi_source_udp.hpp"
 #include <stdint.h>
+#include <stdlib.h>
+
+#ifndef _WIN32
+#include <sys/socket.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#endif
 
 bool MIDISourceUDP::init(const char *client)
 {
