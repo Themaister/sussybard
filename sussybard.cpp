@@ -212,10 +212,10 @@ int main(int argc, char **argv)
 	MonophonyTracker remote;
 
 	local.base_key = args.base_key;
-	local.range = args.num_active_octaves * 12;
+	local.range = args.num_active_octaves * 12 + 1;
 	local.synth_transpose = args.synth_transpose;
 	remote.base_key = args.base_key_udp;
-	remote.range = args.num_active_octaves_udp * 12;
+	remote.range = args.num_active_octaves_udp * 12 + 1;
 	remote.synth_transpose = args.synth_transpose_udp;
 
 	const auto handle_note = [&](const MIDISource::NoteEvent &event,
