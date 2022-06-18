@@ -40,6 +40,8 @@ add_executable(sussybard
         midi_source.hpp
         cli_parser.hpp cli_parser.cpp
         midi_source_udp.hpp midi_source_udp.cpp
+        udp_common.hpp
+        udp_sink.hpp udp_sink.cpp
         synth.cpp synth.hpp)
 
 target_link_libraries(sussybard PRIVATE fmsynth)

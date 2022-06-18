@@ -20,60 +20,63 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "midi_source_udp.hpp"
+#include "udp_sink.hpp"
+#include <string.h>
 #include <stdint.h>
-#include <stdlib.h>
+#include <string>
 
-bool MIDISourceUDP::init(const char *client)
+UDPSink::~UDPSink()
 {
-	if (!client || *client == '\0')
+	if (fd != INVALID_SOCKET)
+		closesocket(fd);
+}
+
+bool UDPSink::init(const char *server)
+{
+	const char *port_delim = strrchr(server, ':');
+	addrinfo *lookup_addr;
+	int ret;
+
+	if (!port_delim)
 		return false;
-	auto port = uint16_t(strtoul(client, nullptr, 0));
 
 	if (!init_socket_api())
+		return false;
+
+	std::string hostname{server, port_delim};
+
+	port_delim++;
+	if ((ret = getaddrinfo(hostname.c_str(), port_delim, nullptr, &lookup_addr)) != 0)
+		return false;
+
+	const addrinfo *iter = lookup_addr;
+	while (iter)
+	{
+		if (iter->ai_family == AF_INET && iter->ai_addrlen == sizeof(addr))
+		{
+			memcpy(&addr, iter->ai_addr, sizeof(addr));
+			break;
+		}
+
+		iter = iter->ai_next;
+	}
+
+	freeaddrinfo(lookup_addr);
+
+	if (!iter)
 		return false;
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd == INVALID_SOCKET)
 		return false;
 
-	sockaddr_in local = {};
-	local.sin_port = htons(port);
-	local.sin_family = AF_INET;
-	local.sin_addr.s_addr = INADDR_ANY;
-
-	const int one = 1;
-	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
-	               reinterpret_cast<const char *>(&one), sizeof(one)) < 0)
-		return false;
-
-	if (bind(fd, reinterpret_cast<const sockaddr *>(&local), sizeof(local)) < 0)
-		return false;
-
 	return true;
 }
 
-bool MIDISourceUDP::wait_next_note_event(NoteEvent &event)
+bool UDPSink::send(int note, bool pressed)
 {
-	uint8_t buf[1024];
-
-	int res;
-	do
-	{
-		res = int(recvfrom(fd, reinterpret_cast<char *>(buf), sizeof(buf) - 1, 0, nullptr, nullptr));
-		if (res < 0)
-			return false;
-	} while (res == 0);
-
-	// Most basic protocol that ever existed :)
-
-	event.pressed = (buf[0] & 0x80) != 0;
-	event.note = buf[0] & 0x7f;
-	return true;
-}
-
-MIDISourceUDP::~MIDISourceUDP()
-{
-	if (fd != INVALID_SOCKET)
-		closesocket(fd);
+	uint8_t msg = uint8_t(note) | (pressed ? 0x80 : 0);
+	int ret = int(sendto(fd, reinterpret_cast<const char *>(&msg), 1, 0,
+	                     reinterpret_cast<const sockaddr *>(&addr), sizeof(addr)));
+	return ret > 0;
 }

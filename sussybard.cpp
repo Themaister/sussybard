@@ -30,6 +30,7 @@
 #include "synth.hpp"
 #include "cli_parser.hpp"
 #include "midi_source_udp.hpp"
+#include "udp_sink.hpp"
 
 #ifdef _WIN32
 #include "midi_source_win32.hpp"
@@ -72,6 +73,7 @@ static std::vector<uint32_t> initialize_bind_table(const KeySink *key)
 struct Arguments
 {
 	std::string client;
+	std::string udp_sink;
 	bool key_sink = false;
 	bool udp_source = false;
 	int midi_transpose = 0;
@@ -107,6 +109,7 @@ static void print_help()
 	                "\t[--midi-source <MIDI device name>]\n"
 	                "\t[--udp-source <port>]\n"
 	                "\t[--key-sink]\n"
+	                "\t[--udp-sink <addr:port>]\n"
 	                "\t[--midi-transpose <semitones (default = 0)>]\n"
 	                "\t[--synth-transpose <semitones (default = 12)>]\n"
 	                "\t[--base-key <MIDI key which maps to lowest C on Bard instrument> (default = 36 / C2)]\n"
@@ -121,6 +124,7 @@ int main(int argc, char **argv)
 	cbs.add("--midi-source", [&](Util::CLIParser &parser) { args.client = parser.next_string(); });
 	cbs.add("--udp-source", [&](Util::CLIParser &parser) { args.client = parser.next_string(); args.udp_source = true; });
 	cbs.add("--key-sink", [&](Util::CLIParser &) { args.key_sink = true; });
+	cbs.add("--udp-sink", [&](Util::CLIParser &parser) { args.udp_sink = parser.next_string(); });
 	cbs.add("--midi-transpose", [&](Util::CLIParser &parser) { args.midi_transpose = parser.next_int(); });
 	cbs.add("--synth-transpose", [&](Util::CLIParser &parser) { args.synth_transpose = parser.next_int(); });
 	cbs.add("--base-key", [&](Util::CLIParser &parser) { args.base_key = parser.next_int(); });
@@ -143,11 +147,19 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 
 	std::unique_ptr<KeySink> key;
+	std::unique_ptr<UDPSink> udp_sink;
 
 	if (args.key_sink)
 	{
 		key = std::make_unique<KeySink>();
 		if (!key->init())
+			return EXIT_FAILURE;
+	}
+
+	if (!args.udp_sink.empty())
+	{
+		udp_sink = std::make_unique<UDPSink>();
+		if (!udp_sink->init(args.udp_sink.c_str()))
 			return EXIT_FAILURE;
 	}
 
@@ -164,6 +176,9 @@ int main(int argc, char **argv)
 	while (source->wait_next_note_event(ev))
 	{
 		ev.note += args.midi_transpose;
+
+		if (udp_sink && !udp_sink->send(ev.note, ev.pressed))
+			break;
 
 		int node_offset = ev.note - args.base_key;
 		bool in_range = node_offset >= 0 && node_offset < num_keys;

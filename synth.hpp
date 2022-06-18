@@ -40,7 +40,7 @@ public:
 	virtual void set_latency_usec(uint32_t usec) = 0;
 };
 
-class Synth : public BackendCallback
+class Synth final : public BackendCallback
 {
 public:
 	~Synth() override;

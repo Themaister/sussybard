@@ -22,16 +22,16 @@
 
 #pragma once
 
-#include "midi_source.hpp"
 #include "udp_common.hpp"
 
-class MIDISourceUDP final : public MIDISource
+class UDPSink
 {
 public:
-	~MIDISourceUDP() override;
-	bool init(const char *client) override;
-	bool wait_next_note_event(NoteEvent &event) override;
+	~UDPSink();
+	bool init(const char *server);
+	bool send(int note, bool pressed);
 
 private:
 	SOCKET fd = INVALID_SOCKET;
+	sockaddr_in addr = {};
 };
