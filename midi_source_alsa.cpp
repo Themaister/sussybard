@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "midi_source.hpp"
+#include "midi_source_alsa.hpp"
 
 bool MIDISource::wait_next_note_event(NoteEvent &event)
 {

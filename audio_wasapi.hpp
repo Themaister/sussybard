@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2022 Hans-Kristian Arntzen
+/* Copyright (c) 2022 Hans-Kristian Arntzen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,18 +22,22 @@
 
 #pragma once
 
-#include <pulse/pulseaudio.h>
+#include <thread>
 #include <atomic>
-#include <vector>
+#include <audioclient.h>
+#include <audiopolicy.h>
+#include <mmdeviceapi.h>
+#include <avrt.h>
+
 #include "synth.hpp"
 
-// Hacked and stripped down version of Granite's Pulse backend.
+// Hacked and stripped down version of Granite's WASAPI backend.
 
-struct Pulse
+struct WASAPI
 {
 public:
-	explicit Pulse(BackendCallback *callback_);
-	~Pulse();
+	explicit WASAPI(BackendCallback *callback_);
+	~WASAPI();
 
 	bool init(float sample_rate_, unsigned channels_);
 	bool start();
@@ -55,16 +59,24 @@ public:
 	float sample_rate = 0.0f;
 	unsigned channels = 0;
 
-	pa_threaded_mainloop *mainloop = nullptr;
-	pa_context *context = nullptr;
-	pa_stream *stream = nullptr;
-	size_t buffer_frames = 0;
-	int success = -1;
-	bool has_success = false;
-	bool is_active = false;
+	void thread_runner() noexcept;
 
-	void update_buffer_attr(const pa_buffer_attr &attr) noexcept;
-	size_t to_frames(size_t size) const noexcept;
+	std::thread thr;
+	std::atomic<bool> dead;
+
+	IMMDeviceEnumerator *pEnumerator = nullptr;
+	IMMDevice *pDevice = nullptr;
+	IAudioClient *pAudioClient = nullptr;
+	IAudioRenderClient *pRenderClient = nullptr;
+	UINT32 buffer_frames = 0;
+	WAVEFORMATEX *format = nullptr;
+	bool is_active = false;
+	HANDLE audio_event = nullptr;
+
+	bool kick_start() noexcept;
+
+	bool get_write_avail(UINT32 &avail) noexcept;
+	bool get_write_avail_blocking(UINT32 &avail) noexcept;
 };
 
-using AudioBackend = Pulse;
+using AudioBackend = WASAPI;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2022 Hans-Kristian Arntzen
+/* Copyright (c) 2022 Hans-Kristian Arntzen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -20,51 +20,53 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
+#include "key_sink_win32.hpp"
 
-#include <pulse/pulseaudio.h>
-#include <atomic>
-#include <vector>
-#include "synth.hpp"
-
-// Hacked and stripped down version of Granite's Pulse backend.
-
-struct Pulse
+bool KeySink::init()
 {
-public:
-	explicit Pulse(BackendCallback *callback_);
-	~Pulse();
+	return true;
+}
 
-	bool init(float sample_rate_, unsigned channels_);
-	bool start();
-	bool stop();
+KeySink::~KeySink()
+{
+}
 
-	float get_sample_rate() const
+void KeySink::dispatch(const Event *events, size_t count)
+{
+	input_buffer.clear();
+	input_buffer.reserve(count);
+
+	for (size_t i = 0; i < count; i++)
 	{
-		return sample_rate;
+		INPUT ip = {};
+		ip.type = INPUT_KEYBOARD;
+		ip.ki.dwFlags = events[i].press ? 0 : KEYEVENTF_KEYUP;
+		ip.ki.wVk = events[i].code;
+		input_buffer.push_back(ip);
 	}
 
-	unsigned get_num_channels() const
+	SendInput(UINT(count), input_buffer.data(), sizeof(INPUT));
+}
+
+uint32_t KeySink::translate_key(char key) const
+{
+	if (isalpha(key))
+		return uint32_t(toupper(key));
+	else if (key == ',')
+		return VK_OEM_COMMA;
+	else
+		return uint32_t(key);
+}
+
+uint32_t KeySink::translate_key(SpecialKey key) const
+{
+	switch (key)
 	{
-		return channels;
+	case SpecialKey::LeftControl:
+		return VK_LCONTROL;
+	case SpecialKey::LeftShift:
+		return VK_LSHIFT;
+	default:
+		return 0;
 	}
-
-	enum { MaxChannels = 2 };
-
-	BackendCallback *callback;
-	float sample_rate = 0.0f;
-	unsigned channels = 0;
-
-	pa_threaded_mainloop *mainloop = nullptr;
-	pa_context *context = nullptr;
-	pa_stream *stream = nullptr;
-	size_t buffer_frames = 0;
-	int success = -1;
-	bool has_success = false;
-	bool is_active = false;
-
-	void update_buffer_attr(const pa_buffer_attr &attr) noexcept;
-	size_t to_frames(size_t size) const noexcept;
-};
-
-using AudioBackend = Pulse;
+}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2022 Hans-Kristian Arntzen
+/* Copyright (c) 2022 Hans-Kristian Arntzen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,49 +22,35 @@
 
 #pragma once
 
-#include <pulse/pulseaudio.h>
-#include <atomic>
-#include <vector>
-#include "synth.hpp"
+#include <windows.h>
+#include <stdint.h>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 
-// Hacked and stripped down version of Granite's Pulse backend.
-
-struct Pulse
+class MIDISource
 {
 public:
-	explicit Pulse(BackendCallback *callback_);
-	~Pulse();
-
-	bool init(float sample_rate_, unsigned channels_);
-	bool start();
-	bool stop();
-
-	float get_sample_rate() const
+	struct NoteEvent
 	{
-		return sample_rate;
-	}
+		int note;
+		bool pressed;
+	};
 
-	unsigned get_num_channels() const
-	{
-		return channels;
-	}
+	MIDISource() = default;
+	void operator=(const MIDISource &) = delete;
+	~MIDISource();
+	bool init(const char *client);
+	bool wait_next_note_event(NoteEvent &event);
 
-	enum { MaxChannels = 2 };
+	void key_on(int note);
+	void key_off(int note);
 
-	BackendCallback *callback;
-	float sample_rate = 0.0f;
-	unsigned channels = 0;
+private:
+	HMIDIIN handle = {};
+	void list_midi_ports();
 
-	pa_threaded_mainloop *mainloop = nullptr;
-	pa_context *context = nullptr;
-	pa_stream *stream = nullptr;
-	size_t buffer_frames = 0;
-	int success = -1;
-	bool has_success = false;
-	bool is_active = false;
-
-	void update_buffer_attr(const pa_buffer_attr &attr) noexcept;
-	size_t to_frames(size_t size) const noexcept;
+	std::mutex lock;
+	std::condition_variable cond;
+	std::queue<NoteEvent> note_queue;
 };
-
-using AudioBackend = Pulse;

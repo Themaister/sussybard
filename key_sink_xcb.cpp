@@ -20,7 +20,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "key_sink.hpp"
+#include "key_sink_xcb.hpp"
 #include <stdlib.h>
 #include <stdio.h>
 

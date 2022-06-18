@@ -21,12 +21,20 @@
  */
 
 #include <stdio.h>
-
 #include <stdlib.h>
+#include <stdint.h>
 #include <vector>
-#include "midi_source.hpp"
-#include "key_sink.hpp"
+#include "synth.hpp"
+
+#ifdef _WIN32
+#include "midi_source_win32.hpp"
+#include "key_sink_win32.hpp"
+#include "audio_wasapi.hpp"
+#else
+#include "midi_source_alsa.hpp"
+#include "key_sink_xcb.hpp"
 #include "audio_pulse.hpp"
+#endif
 
 // 3 octave range for Bard.
 constexpr int base_key = 36; // C somewhere on my keyboard.
@@ -66,7 +74,7 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 
 	Synth synth;
-	Pulse pulse(&synth);
+	AudioBackend pulse(&synth);
 	if (!pulse.init(48000.0f, 2))
 		return EXIT_FAILURE;
 

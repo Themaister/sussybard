@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2022 Hans-Kristian Arntzen
+/* Copyright (c) 2022 Hans-Kristian Arntzen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,49 +22,28 @@
 
 #pragma once
 
-#include <pulse/pulseaudio.h>
-#include <atomic>
+#include <windows.h>
 #include <vector>
-#include "synth.hpp"
+#include <stdint.h>
 
-// Hacked and stripped down version of Granite's Pulse backend.
-
-struct Pulse
+class KeySink
 {
 public:
-	explicit Pulse(BackendCallback *callback_);
-	~Pulse();
+	~KeySink();
+	bool init();
 
-	bool init(float sample_rate_, unsigned channels_);
-	bool start();
-	bool stop();
+	enum class SpecialKey { LeftShift, LeftControl };
 
-	float get_sample_rate() const
+	uint32_t translate_key(char key) const;
+	uint32_t translate_key(SpecialKey key) const;
+
+	struct Event
 	{
-		return sample_rate;
-	}
+		uint32_t code;
+		bool press;
+	};
+	void dispatch(const Event *events, size_t count);
 
-	unsigned get_num_channels() const
-	{
-		return channels;
-	}
-
-	enum { MaxChannels = 2 };
-
-	BackendCallback *callback;
-	float sample_rate = 0.0f;
-	unsigned channels = 0;
-
-	pa_threaded_mainloop *mainloop = nullptr;
-	pa_context *context = nullptr;
-	pa_stream *stream = nullptr;
-	size_t buffer_frames = 0;
-	int success = -1;
-	bool has_success = false;
-	bool is_active = false;
-
-	void update_buffer_attr(const pa_buffer_attr &attr) noexcept;
-	size_t to_frames(size_t size) const noexcept;
+private:
+	std::vector<INPUT> input_buffer;
 };
-
-using AudioBackend = Pulse;
