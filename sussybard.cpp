@@ -271,7 +271,7 @@ int main(int argc, char **argv)
 		if (remote.note_is_in_range(ev.note) && udp_sink && !udp_sink->send(ev.note, ev.pressed))
 			break;
 
-		if (!handle_note(ev, remote, false))
+		if (!handle_note(ev, remote, false) || !udp_sink)
 			handle_note(ev, local, true);
 	}
 
