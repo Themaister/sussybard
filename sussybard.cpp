@@ -219,15 +219,15 @@ int main(int argc, char **argv)
 	remote.synth_transpose = args.synth_transpose_udp;
 
 	const auto handle_note = [&](const MIDISource::NoteEvent &event,
-	                             MonophonyTracker &tracker, bool is_local) {
+	                             MonophonyTracker &tracker, bool is_local) -> bool {
 		if (!tracker.note_is_in_range(event.note))
-			return;
+			return false;
 
 		int note_offset_local = event.note - tracker.base_key;
 
 		// Ignore weird double taps.
 		if (event.pressed && tracker.pressed_note_offset == note_offset_local)
-			return;
+			return true;
 
 		if (event.pressed)
 			synth.post_note_on(is_local ? 0 : 1, event.note + tracker.synth_transpose);
@@ -260,6 +260,8 @@ int main(int argc, char **argv)
 
 		if (is_local && key && event_count)
 			key->dispatch(key_events, event_count);
+
+		return true;
 	};
 
 	while (source->wait_next_note_event(ev))
@@ -269,8 +271,8 @@ int main(int argc, char **argv)
 		if (remote.note_is_in_range(ev.note) && udp_sink && !udp_sink->send(ev.note, ev.pressed))
 			break;
 
-		handle_note(ev, local, true);
-		handle_note(ev, remote, false);
+		if (!handle_note(ev, remote, false))
+			handle_note(ev, local, true);
 	}
 
 	if (key && local.pressed_note_offset >= 0)
